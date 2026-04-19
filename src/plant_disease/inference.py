@@ -9,7 +9,7 @@ from typing import Any
 import cv2
 import numpy as np
 
-from .preprocessing import preprocess_image
+from .preprocessing import advanced_leaf_mask, advanced_preprocess_image, preprocess_image
 
 
 def read_rgb_image(path: str | Path, image_size: int = 224) -> np.ndarray:
@@ -147,21 +147,26 @@ def extract_classical_features(image: np.ndarray, bins: int = 16) -> np.ndarray:
 
 def build_visual_pipeline(image: np.ndarray) -> dict[str, np.ndarray]:
     preprocessed = preprocess_image(image)
+    advanced_preprocessed = advanced_preprocess_image(image)
     otsu = threshold_mask(preprocessed)
     hsv = hsv_mask(preprocessed)
     kmeans = kmeans_mask(preprocessed)
+    advanced = advanced_leaf_mask(image)
     sobel = sobel_edges(preprocessed)
     canny = canny_edges(preprocessed)
     return {
         "original": image,
         "preprocessed": preprocessed,
+        "advanced_preprocessed": advanced_preprocessed,
         "grayscale": to_gray(preprocessed),
         "threshold_mask": otsu,
         "hsv_mask": hsv,
         "kmeans_mask": kmeans,
+        "advanced_mask": advanced,
         "sobel_edges": sobel,
         "canny_edges": canny,
         "segmented_leaf": apply_mask(preprocessed, hsv),
+        "advanced_segmented_leaf": apply_mask(advanced_preprocessed, advanced),
     }
 
 

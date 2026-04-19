@@ -22,6 +22,18 @@ def preprocess_image(image: np.ndarray) -> np.ndarray:
     return cv2.cvtColor(merged, cv2.COLOR_LAB2RGB)
 
 
+def advanced_preprocess_image(image: np.ndarray) -> np.ndarray:
+    denoised = cv2.bilateralFilter(image, 7, 40, 40)
+    lab = cv2.cvtColor(denoised, cv2.COLOR_RGB2LAB)
+    l_channel, a_channel, b_channel = cv2.split(lab)
+    clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+    enhanced_l = clahe.apply(l_channel)
+    merged = cv2.merge([enhanced_l, a_channel, b_channel])
+    enhanced = cv2.cvtColor(merged, cv2.COLOR_LAB2RGB)
+    blurred = cv2.GaussianBlur(enhanced, (0, 0), 1.2)
+    return cv2.addWeighted(enhanced, 1.15, blurred, -0.15, 0)
+
+
 def to_grayscale(image: np.ndarray) -> np.ndarray:
     return cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
 
@@ -83,6 +95,38 @@ def kmeans_mask(image: np.ndarray, k: int = 3) -> np.ndarray:
     leaf_cluster = int(np.argmax(green_scores))
     mask = (labels.flatten() == leaf_cluster).astype(np.uint8).reshape(image.shape[:2]) * 255
     kernel = np.ones((5, 5), np.uint8)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+    return mask
+
+
+def advanced_leaf_mask(image: np.ndarray) -> np.ndarray:
+    enhanced = advanced_preprocess_image(image)
+    hsv_seed = leaf_mask(enhanced)
+    cluster_seed = kmeans_mask(enhanced)
+    seed = cv2.bitwise_or(hsv_seed, cluster_seed)
+
+    kernel = np.ones((5, 5), np.uint8)
+    sure_fg = cv2.erode(seed, kernel, iterations=1)
+    sure_bg = cv2.dilate(seed, kernel, iterations=2)
+
+    grabcut_mask = np.full(image.shape[:2], cv2.GC_PR_BGD, dtype=np.uint8)
+    grabcut_mask[sure_bg == 0] = cv2.GC_BGD
+    grabcut_mask[seed > 0] = cv2.GC_PR_FGD
+    grabcut_mask[sure_fg > 0] = cv2.GC_FGD
+
+    bg_model = np.zeros((1, 65), np.float64)
+    fg_model = np.zeros((1, 65), np.float64)
+    try:
+        cv2.grabCut(enhanced, grabcut_mask, None, bg_model, fg_model, 3, cv2.GC_INIT_WITH_MASK)
+        mask = np.where(
+            (grabcut_mask == cv2.GC_FGD) | (grabcut_mask == cv2.GC_PR_FGD),
+            255,
+            0,
+        ).astype(np.uint8)
+    except cv2.error:
+        mask = seed
+
     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
     return mask

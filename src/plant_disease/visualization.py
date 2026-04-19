@@ -6,7 +6,16 @@ import cv2
 import numpy as np
 
 from .config import AppConfig
-from .preprocessing import apply_mask, contour_overlay, edge_map, leaf_mask, preprocess_image, read_image
+from .preprocessing import (
+    advanced_leaf_mask,
+    advanced_preprocess_image,
+    apply_mask,
+    contour_overlay,
+    edge_map,
+    leaf_mask,
+    preprocess_image,
+    read_image,
+)
 from .utils import ensure_dir, read_csv
 
 
@@ -29,8 +38,11 @@ def generate_examples(config: AppConfig, metadata_path: Path, per_class: int = 2
         for idx, row in enumerate(samples, start=1):
             original = read_image(row["image_path"], config.dataset.image_size)
             preprocessed = preprocess_image(original)
+            advanced_preprocessed = advanced_preprocess_image(original)
             mask = leaf_mask(preprocessed)
+            advanced_mask = advanced_leaf_mask(original)
             masked = apply_mask(preprocessed, mask)
+            advanced_masked = apply_mask(advanced_preprocessed, advanced_mask)
             edges = edge_map(preprocessed)
             contours = contour_overlay(preprocessed, edges)
 
@@ -38,8 +50,11 @@ def generate_examples(config: AppConfig, metadata_path: Path, per_class: int = 2
                 [
                     _to_bgr(original),
                     _to_bgr(preprocessed),
+                    _to_bgr(advanced_preprocessed),
                     _to_bgr(mask),
+                    _to_bgr(advanced_mask),
                     _to_bgr(masked),
+                    _to_bgr(advanced_masked),
                     _to_bgr(edges),
                     _to_bgr(contours),
                 ],
@@ -49,4 +64,3 @@ def generate_examples(config: AppConfig, metadata_path: Path, per_class: int = 2
             cv2.imwrite(str(output_path), grid)
             output_paths.append(output_path)
     return output_paths
-

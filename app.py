@@ -97,7 +97,7 @@ if uploaded is not None:
     cols = st.columns(3)
     cols[0].image(visuals["original"], caption="Original", use_container_width=True)
     cols[1].image(visuals["preprocessed"], caption="Preprocessed", use_container_width=True)
-    cols[2].image(visuals["segmented_leaf"], caption="Segmented leaf", use_container_width=True)
+    cols[2].image(visuals["advanced_preprocessed"], caption="Advanced preprocessing", use_container_width=True)
 
     cols = st.columns(4)
     cols[0].image(visuals["grayscale"], caption="Grayscale", use_container_width=True)
@@ -106,8 +106,13 @@ if uploaded is not None:
     cols[3].image(visuals["kmeans_mask"], caption="KMeans mask", use_container_width=True)
 
     cols = st.columns(2)
-    cols[0].image(visuals["sobel_edges"], caption="Sobel", use_container_width=True)
-    cols[1].image(visuals["canny_edges"], caption="Canny", use_container_width=True)
+    cols[0].image(visuals["advanced_mask"], caption="Advanced mask", use_container_width=True)
+    cols[1].image(visuals["advanced_segmented_leaf"], caption="Advanced segmented leaf", use_container_width=True)
+
+    cols = st.columns(3)
+    cols[0].image(visuals["segmented_leaf"], caption="HSV segmented leaf", use_container_width=True)
+    cols[1].image(visuals["sobel_edges"], caption="Sobel", use_container_width=True)
+    cols[2].image(visuals["canny_edges"], caption="Canny", use_container_width=True)
 
     result_cols = st.columns(2)
     classical_result = None

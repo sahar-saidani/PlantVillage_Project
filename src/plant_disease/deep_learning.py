@@ -12,8 +12,12 @@ from torch.utils.data import DataLoader, Dataset
 
 from .config import AppConfig
 from .evaluation import classification_report_dict, save_confusion_matrix_image, save_metrics
-from .preprocessing import preprocess_image, read_image
-from .utils import ensure_dir, read_csv
+from .preprocessing import read_image
+from .utils import ensure_dir, read_csv, write_json
+
+
+IMAGENET_MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+IMAGENET_STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 
 
 class PlantDiseaseDataset(Dataset):
@@ -35,15 +39,31 @@ class PlantDiseaseDataset(Dataset):
     def __getitem__(self, index: int) -> tuple[torch.Tensor, int]:
         row = self.rows[index]
         image = read_image(row["image_path"], self.image_size)
-        image = preprocess_image(image)
 
         if self.augment:
             if np.random.rand() < 0.5:
                 image = np.fliplr(image).copy()
-            if np.random.rand() < 0.2:
-                image = cv2.GaussianBlur(image, (3, 3), 0)
+            if np.random.rand() < 0.5:
+                angle = float(np.random.uniform(-15.0, 15.0))
+                center = (self.image_size / 2, self.image_size / 2)
+                matrix = cv2.getRotationMatrix2D(center, angle, 1.0)
+                image = cv2.warpAffine(
+                    image,
+                    matrix,
+                    (self.image_size, self.image_size),
+                    flags=cv2.INTER_LINEAR,
+                    borderMode=cv2.BORDER_REFLECT_101,
+                )
+            if np.random.rand() < 0.5:
+                hsv = cv2.cvtColor(image, cv2.COLOR_RGB2HSV).astype(np.float32)
+                hsv[..., 1] *= np.random.uniform(0.85, 1.15)
+                hsv[..., 2] *= np.random.uniform(0.85, 1.15)
+                hsv[..., 1:] = np.clip(hsv[..., 1:], 0, 255)
+                image = cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2RGB)
 
-        tensor = torch.from_numpy(image.transpose(2, 0, 1)).float() / 255.0
+        image = image.astype(np.float32) / 255.0
+        image = (image - IMAGENET_MEAN) / IMAGENET_STD
+        tensor = torch.from_numpy(image.transpose(2, 0, 1)).float()
         return tensor, self.label_to_idx[row["label"]]
 
 
@@ -90,8 +110,112 @@ def _build_model(config: AppConfig, num_classes: int) -> tuple[nn.Module, str]:
     return SimpleCNN(num_classes), "simple_cnn"
 
 
+def _build_model_from_state_dict(
+    config: AppConfig,
+    num_classes: int,
+    state_dict: dict[str, torch.Tensor],
+) -> tuple[nn.Module, str]:
+    if any(key.startswith("features.0.0.") for key in state_dict):
+        try:
+            from torchvision import models
+
+            model = models.efficientnet_b0(weights=None)
+            in_features = model.classifier[1].in_features
+            model.classifier[1] = nn.Linear(in_features, num_classes)
+            return model, "efficientnet_b0_pretrained"
+        except Exception as exc:
+            raise RuntimeError(
+                "The saved checkpoint appears to be an EfficientNet model, "
+                "but torchvision is unavailable to rebuild the architecture."
+            ) from exc
+    return _build_model(config, num_classes)
+
+
 def _split_rows(rows: list[dict[str, str]], split: str) -> list[dict[str, str]]:
     return [row for row in rows if row["split"] == split]
+
+
+def _build_test_loader(
+    config: AppConfig,
+    rows: list[dict[str, str]],
+    labels: list[str],
+) -> DataLoader:
+    label_to_idx = {label: idx for idx, label in enumerate(labels)}
+    test_rows = _split_rows(rows, "test")
+    test_ds = PlantDiseaseDataset(test_rows, config.dataset.image_size, label_to_idx, augment=False)
+    return DataLoader(
+        test_ds,
+        batch_size=config.deep_learning.batch_size,
+        shuffle=False,
+        num_workers=config.deep_learning.num_workers,
+    )
+
+
+def _evaluate_model_on_test(
+    model: nn.Module,
+    test_loader: DataLoader,
+    labels: list[str],
+    device: torch.device,
+) -> dict[str, object]:
+    model.eval()
+    y_true: list[int] = []
+    y_pred: list[int] = []
+    with torch.no_grad():
+        for inputs, targets in test_loader:
+            outputs = model(inputs.to(device))
+            predictions = outputs.argmax(dim=1).cpu().tolist()
+            y_pred.extend(predictions)
+            y_true.extend(targets.tolist())
+    return classification_report_dict(y_true, y_pred, labels)
+
+
+def _write_deep_outputs(
+    config: AppConfig,
+    labels: list[str],
+    metrics: dict[str, object],
+    model_state: dict[str, torch.Tensor] | None = None,
+) -> None:
+    ensure_dir(config.paths.deep_dir)
+    if model_state is not None:
+        torch.save(model_state, config.paths.deep_dir / "best_model.pt")
+    write_json(config.paths.deep_dir / "class_names.json", labels)
+    save_metrics(config.paths.deep_dir, "deep_metrics.json", metrics)
+    save_confusion_matrix_image(
+        metrics["confusion_matrix"],
+        labels,
+        config.paths.deep_dir / "deep_confusion_matrix.png",
+    )
+
+
+def load_saved_deep_results(config: AppConfig) -> dict[str, object]:
+    training_summary_path = config.paths.deep_dir / "training_summary.json"
+    deep_metrics_path = config.paths.deep_dir / "deep_metrics.json"
+
+    if training_summary_path.exists():
+        import json
+
+        payload = json.loads(training_summary_path.read_text(encoding="utf-8"))
+        return {
+            "accuracy": payload.get("test_accuracy"),
+            "macro_f1": payload.get("macro_avg_f1"),
+            "best_val_acc": payload.get("best_val_acc"),
+            "history": payload.get("history", []),
+            "model_name": payload.get("model_name", "saved_checkpoint"),
+            "reused_pretrained_checkpoint": True,
+            "loaded_from_summary_only": True,
+        }
+
+    if deep_metrics_path.exists():
+        import json
+
+        payload = json.loads(deep_metrics_path.read_text(encoding="utf-8"))
+        payload["reused_pretrained_checkpoint"] = True
+        payload["loaded_from_summary_only"] = True
+        return payload
+
+    raise FileNotFoundError(
+        "No reusable deep artifacts found. Expected training_summary.json or deep_metrics.json."
+    )
 
 
 def _run_epoch(
@@ -194,25 +318,52 @@ def train_and_evaluate_deep(config: AppConfig, metadata_path: Path) -> dict[str,
     if best_state is not None:
         model.load_state_dict(best_state)
 
-    model.eval()
-    y_true: list[int] = []
-    y_pred: list[int] = []
-    with torch.no_grad():
-        for inputs, targets in test_loader:
-            outputs = model(inputs.to(device))
-            predictions = outputs.argmax(dim=1).cpu().tolist()
-            y_pred.extend(predictions)
-            y_true.extend(targets.tolist())
-
-    metrics = classification_report_dict(y_true, y_pred, labels)
+    metrics = _evaluate_model_on_test(model, test_loader, labels, device)
     metrics["history"] = history
     metrics["model_name"] = model_name
 
-    ensure_dir(config.paths.deep_dir)
-    torch.save(model.state_dict(), config.paths.deep_dir / "best_model.pt")
-    save_metrics(config.paths.deep_dir, "deep_metrics.json", metrics)
-    save_confusion_matrix_image(
-        metrics["confusion_matrix"], labels, config.paths.deep_dir / "deep_confusion_matrix.png"
+    _write_deep_outputs(
+        config,
+        labels,
+        metrics,
+        model_state=model.state_dict(),
     )
     return metrics
 
+
+def evaluate_saved_deep_model(config: AppConfig, metadata_path: Path) -> dict[str, object]:
+    rows = read_csv(metadata_path)
+    labels = config.dataset.classes
+    classes_path = config.paths.deep_dir / "class_names.json"
+    if classes_path.exists():
+        import json
+
+        saved_labels = json.loads(classes_path.read_text(encoding="utf-8"))
+        if list(saved_labels) == labels:
+            labels = saved_labels
+
+    test_loader = _build_test_loader(config, rows, labels)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model_path = config.paths.deep_dir / "best_model.pt"
+    if not model_path.exists():
+        raise FileNotFoundError(f"Saved deep model not found: {model_path}")
+
+    state = torch.load(model_path, map_location=device)
+    model, model_name = _build_model_from_state_dict(config, len(labels), state)
+    model.load_state_dict(state)
+    model = model.to(device)
+
+    metrics = _evaluate_model_on_test(model, test_loader, labels, device)
+    metrics["history"] = []
+    metrics["model_name"] = f"{model_name}_reused"
+    metrics["reused_pretrained_checkpoint"] = True
+
+    _write_deep_outputs(config, labels, metrics)
+    return metrics
+
+
+def reuse_or_evaluate_saved_deep_model(config: AppConfig, metadata_path: Path) -> dict[str, object]:
+    try:
+        return evaluate_saved_deep_model(config, metadata_path)
+    except Exception:
+        return load_saved_deep_results(config)
