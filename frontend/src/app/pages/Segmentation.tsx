@@ -21,40 +21,6 @@ export function Segmentation() {
         </p>
       </div>
 
-      <CompactImageImport
-        loading={live.loading}
-        onFileSelect={live.run}
-        subtitle="Shows threshold, HSV, KMeans, advanced mask, Sobel, and Canny outputs."
-      />
-
-      {live.error && (
-        <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
-          {live.error}
-        </div>
-      )}
-
-      {live.result && (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {[
-            { label: "Threshold", key: "threshold_mask" },
-            { label: "HSV mask", key: "hsv_mask" },
-            { label: "KMeans mask", key: "kmeans_mask" },
-            { label: "Advanced mask", key: "advanced_mask" },
-            { label: "Sobel", key: "sobel_edges" },
-            { label: "Canny", key: "canny_edges" },
-          ].map((item) => (
-            <div key={item.key} className="bg-[#1a1d27] rounded-xl p-4 border border-gray-800">
-              <h3 className="text-sm font-semibold mb-3 text-gray-300">{item.label}</h3>
-              <img
-                src={`data:image/png;base64,${live.result.visuals[item.key]}`}
-                alt={item.label}
-                className="w-full rounded-lg border border-gray-800"
-              />
-            </div>
-          ))}
-        </div>
-      )}
-
       <div className="bg-[#1a1d27] rounded-xl p-6 border border-gray-800">
         <h2 className="text-xl font-semibold mb-4">Best Method</h2>
         <p className="text-2xl font-bold text-emerald-500">
@@ -119,6 +85,42 @@ export function Segmentation() {
             <p key={note}>{note}</p>
           ))}
         </div>
+      </div>
+
+      <div className="space-y-6">
+        <CompactImageImport
+          loading={live.loading}
+          onFileSelect={live.run}
+          subtitle="Shows threshold, HSV, KMeans, advanced mask, Sobel, and Canny outputs."
+        />
+
+        {live.error && (
+          <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+            {live.error}
+          </div>
+        )}
+
+        {live.result && (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {[
+              { label: "Threshold", key: "threshold_mask" },
+              { label: "HSV mask", key: "hsv_mask" },
+              { label: "KMeans mask", key: "kmeans_mask" },
+              { label: "Advanced mask", key: "advanced_mask" },
+              { label: "Sobel", key: "sobel_edges" },
+              { label: "Canny", key: "canny_edges" },
+            ].map((item) => (
+              <div key={item.key} className="bg-[#1a1d27] rounded-xl p-4 border border-gray-800">
+                <h3 className="text-sm font-semibold mb-3 text-gray-300">{item.label}</h3>
+                <img
+                  src={`data:image/png;base64,${live.result.visuals[item.key]}`}
+                  alt={item.label}
+                  className="w-full rounded-lg border border-gray-800"
+                />
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

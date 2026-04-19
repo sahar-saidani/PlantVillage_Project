@@ -34,51 +34,6 @@ export function MLClassification() {
         <p className="text-gray-400">Real exported metrics for the classical models.</p>
       </div>
 
-      <CompactImageImport
-        loading={live.loading}
-        onFileSelect={live.run}
-        subtitle="Runs the classical model on the imported image and shows class probabilities."
-      />
-
-      {live.error && (
-        <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
-          {live.error}
-        </div>
-      )}
-
-      {live.result?.predictions.classical_ml && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-[#1a1d27] rounded-xl p-6 border border-gray-800">
-            <h2 className="text-xl font-semibold mb-4">Live Classical Prediction</h2>
-            <p className="text-3xl font-bold text-emerald-500">
-              {live.result.predictions.classical_ml.label.replace("Tomato_", "").replaceAll("_", " ")}
-            </p>
-            <p className="mt-2 text-sm text-gray-400">
-              Feature dimension: {live.result.predictions.classical_ml.feature_dim ?? "n/a"}
-            </p>
-            {live.previewUrl && (
-              <img src={live.previewUrl} alt="Imported leaf" className="mt-4 w-full rounded-lg border border-gray-800" />
-            )}
-          </div>
-          <div className="bg-[#1a1d27] rounded-xl p-6 border border-gray-800">
-            <h2 className="text-xl font-semibold mb-4">Class Probabilities</h2>
-            <div className="space-y-3">
-              {Object.entries(live.result.predictions.classical_ml.scores ?? {}).map(([label, score]) => (
-                <div key={label}>
-                  <div className="mb-1 flex items-center justify-between text-sm">
-                    <span>{label.replace("Tomato_", "").replaceAll("_", " ")}</span>
-                    <span>{(score * 100).toFixed(2)}%</span>
-                  </div>
-                  <div className="h-2 rounded-full bg-gray-800">
-                    <div className="h-2 rounded-full bg-emerald-500" style={{ width: `${score * 100}%` }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="bg-[#1a1d27] rounded-xl p-6 border border-gray-800">
         <h2 className="text-xl font-semibold mb-4">Select Model</h2>
         <div className="flex gap-3">
@@ -159,6 +114,53 @@ export function MLClassification() {
             {data.comparisonSummary.classical.best_model}
           </span>
         </p>
+      </div>
+
+      <div className="space-y-6">
+        <CompactImageImport
+          loading={live.loading}
+          onFileSelect={live.run}
+          subtitle="Runs the classical model on the imported image and shows class probabilities."
+        />
+
+        {live.error && (
+          <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+            {live.error}
+          </div>
+        )}
+
+        {live.result?.predictions.classical_ml && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-[#1a1d27] rounded-xl p-6 border border-gray-800">
+              <h2 className="text-xl font-semibold mb-4">Live Classical Prediction</h2>
+              <p className="text-3xl font-bold text-emerald-500">
+                {live.result.predictions.classical_ml.label.replace("Tomato_", "").replaceAll("_", " ")}
+              </p>
+              <p className="mt-2 text-sm text-gray-400">
+                Feature dimension: {live.result.predictions.classical_ml.feature_dim ?? "n/a"}
+              </p>
+              {live.previewUrl && (
+                <img src={live.previewUrl} alt="Imported leaf" className="mt-4 w-full rounded-lg border border-gray-800" />
+              )}
+            </div>
+            <div className="bg-[#1a1d27] rounded-xl p-6 border border-gray-800">
+              <h2 className="text-xl font-semibold mb-4">Class Probabilities</h2>
+              <div className="space-y-3">
+                {Object.entries(live.result.predictions.classical_ml.scores ?? {}).map(([label, score]) => (
+                  <div key={label}>
+                    <div className="mb-1 flex items-center justify-between text-sm">
+                      <span>{label.replace("Tomato_", "").replaceAll("_", " ")}</span>
+                      <span>{(score * 100).toFixed(2)}%</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-gray-800">
+                      <div className="h-2 rounded-full bg-emerald-500" style={{ width: `${score * 100}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
