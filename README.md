@@ -134,6 +134,24 @@ npm run dev
 
 Le script `npm run dev` relance aussi automatiquement l'export des artefacts.
 
+## API Flask
+
+Une API Flask est disponible pour connecter le frontend React aux pipelines Python en temps reel.
+
+Lancer l'API :
+
+```powershell
+python api.py
+```
+
+Endpoints principaux :
+
+- `GET /api/health`
+- `GET /api/comparison-summary`
+- `POST /api/predict`
+
+Pour `POST /api/predict`, envoyer un fichier image en `form-data` avec la cle `image`.
+
 ## Sorties attendues
 
 Apres execution, les artefacts sont ranges dans :
