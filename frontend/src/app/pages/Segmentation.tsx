@@ -13,7 +13,9 @@ export function Segmentation() {
     <div className="space-y-6 animate-in fade-in duration-500">
       <div>
         <h1 className="text-3xl font-bold mb-2">Segmentation</h1>
-        <p className="text-gray-400">Benchmark of classical and advanced segmentation methods.</p>
+        <p className="text-gray-400">
+          Benchmark of classical and advanced segmentation methods, with exported example images from the pipeline.
+        </p>
       </div>
 
       <div className="bg-[#1a1d27] rounded-xl p-6 border border-gray-800">
@@ -25,6 +27,18 @@ export function Segmentation() {
           Evaluated on {data.segmentationBenchmark.num_images_evaluated} training images with an
           unsupervised quality score.
         </p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {data.labeledExamples.map((item) => (
+          <div key={item.src} className="bg-[#1a1d27] rounded-xl p-4 border border-gray-800">
+            <h3 className="text-sm font-semibold mb-3 text-gray-300">{item.label}</h3>
+            <img src={item.src} alt={item.label} className="w-full rounded-lg border border-gray-800 bg-gray-950" />
+            <p className="mt-3 text-xs text-gray-400">
+              Each exported strip contains original image, preprocessing, masks, segmented outputs, edges, and contours.
+            </p>
+          </div>
+        ))}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

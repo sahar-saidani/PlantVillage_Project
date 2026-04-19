@@ -126,6 +126,12 @@ export async function loadProjectData() {
       "/project-data/examples/Tomato_Late_blight_sample_1.png",
       "/project-data/examples/Tomato_Bacterial_spot_sample_1.png",
     ],
+    labeledExamples: [
+      { label: "Healthy sample", src: "/project-data/examples/Tomato_healthy_sample_1.png" },
+      { label: "Early blight sample", src: "/project-data/examples/Tomato_Early_blight_sample_1.png" },
+      { label: "Late blight sample", src: "/project-data/examples/Tomato_Late_blight_sample_1.png" },
+      { label: "Bacterial spot sample", src: "/project-data/examples/Tomato_Bacterial_spot_sample_1.png" },
+    ],
     confusionImages: {
       svm: "/project-data/svm_confusion_matrix.png",
       randomForest: "/project-data/random_forest_confusion_matrix.png",
