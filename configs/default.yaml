@@ -1,0 +1,33 @@
+seed: 42
+
+paths:
+  dataset_root: data/PlantVillage
+  metadata_dir: artifacts/metadata
+  examples_dir: artifacts/examples
+  classical_dir: artifacts/classical_ml
+  deep_dir: artifacts/deep_learning
+
+dataset:
+  image_size: 224
+  train_ratio: 0.70
+  val_ratio: 0.15
+  test_ratio: 0.15
+  classes:
+    - Tomato_healthy
+    - Tomato_Early_blight
+    - Tomato_Late_blight
+    - Tomato_Bacterial_spot
+
+classical_ml:
+  hsv_bins: 16
+  random_forest_trees: 300
+  svm_c: 3.0
+
+deep_learning:
+  batch_size: 16
+  epochs: 8
+  lr: 0.0003
+  weight_decay: 0.0001
+  num_workers: 0
+  model_name: simple_cnn
+  use_pretrained_if_available: true

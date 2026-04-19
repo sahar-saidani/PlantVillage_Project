@@ -1,0 +1,2 @@
+"""Plant disease project package."""
+
