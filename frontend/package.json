@@ -4,8 +4,9 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "build": "vite build",
-    "dev": "vite"
+    "sync-data": "python ../scripts/export_frontend_data.py",
+    "build": "python ../scripts/export_frontend_data.py && vite build",
+    "dev": "python ../scripts/export_frontend_data.py && vite"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",

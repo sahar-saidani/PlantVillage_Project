@@ -1,14 +1,7 @@
-import { StatCard } from "../components/StatCard";
 import { ImageIcon, Layers, TrendingUp, Zap, ArrowRight } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-
-const classData = [
-  { name: "Healthy", count: 450 },
-  { name: "Rust", count: 320 },
-  { name: "Blight", count: 280 },
-  { name: "Mildew", count: 195 },
-  { name: "Spot", count: 240 },
-];
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { StatCard } from "../components/StatCard";
+import { useProjectData } from "../lib/use-project-data";
 
 const pipelineSteps = [
   { id: 1, name: "Dataset", icon: ImageIcon },
@@ -20,50 +13,59 @@ const pipelineSteps = [
 ];
 
 export function Dashboard() {
+  const { data, loading } = useProjectData();
+
+  if (loading || !data?.datasetSummary || !data?.comparisonSummary) {
+    return <div className="text-gray-400">Loading project metrics...</div>;
+  }
+
+  const supportByClass = Object.entries(data.svmMetrics?.per_class ?? {}).map(([name, metrics]) => ({
+    name: name.replace("Tomato_", "").replaceAll("_", " "),
+    count: metrics.support,
+  }));
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div>
         <h1 className="text-3xl font-bold mb-2">Dashboard</h1>
-        <p className="text-gray-400">Overview of plant disease detection system</p>
+        <p className="text-gray-400">Real metrics exported from the PlantVillage pipeline</p>
       </div>
 
-      {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title="Total Images"
-          value="1,485"
+          value={data.datasetSummary.num_images.toLocaleString()}
           icon={ImageIcon}
-          trend="+12% this week"
+          trend={`${data.datasetSummary.classes.length} tomato classes`}
           color="emerald"
         />
         <StatCard
-          title="Classes"
-          value="5"
+          title="Best Segmentation"
+          value={(data.segmentationBenchmark?.best_method ?? "n/a").replaceAll("_", " ")}
           icon={Layers}
-          trend="Healthy + 4 diseases"
+          trend={`${data.segmentationBenchmark?.num_images_evaluated ?? 0} train images benchmarked`}
           color="blue"
         />
         <StatCard
           title="Best Accuracy (ML)"
-          value="94.2%"
+          value={`${((data.comparisonSummary.classical.test_accuracy ?? 0) * 100).toFixed(2)}%`}
           icon={TrendingUp}
-          trend="Random Forest"
+          trend={data.comparisonSummary.classical.best_model}
           color="amber"
         />
         <StatCard
           title="Best Accuracy (DL)"
-          value="97.8%"
+          value={`${(data.comparisonSummary.deep_learning.test_accuracy * 100).toFixed(2)}%`}
           icon={Zap}
-          trend="CNN Model"
+          trend={data.comparisonSummary.deep_learning.model}
           color="rose"
         />
       </div>
 
-      {/* Class Distribution Chart */}
       <div className="bg-[#1a1d27] rounded-xl p-6 border border-gray-800">
-        <h2 className="text-xl font-semibold mb-4">Class Distribution</h2>
+        <h2 className="text-xl font-semibold mb-4">Test Set Distribution</h2>
         <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={classData}>
+          <BarChart data={supportByClass}>
             <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
             <XAxis dataKey="name" stroke="#9ca3af" />
             <YAxis stroke="#9ca3af" />
@@ -79,23 +81,45 @@ export function Dashboard() {
         </ResponsiveContainer>
       </div>
 
-      {/* Pipeline Flow */}
       <div className="bg-[#1a1d27] rounded-xl p-6 border border-gray-800">
         <h2 className="text-xl font-semibold mb-6">Processing Pipeline</h2>
         <div className="flex items-center justify-between">
           {pipelineSteps.map((step, index) => (
             <div key={step.id} className="flex items-center">
               <div className="flex flex-col items-center">
-                <div className="w-16 h-16 bg-emerald-500/10 rounded-xl flex items-center justify-center border border-emerald-500/20 hover:bg-emerald-500/20 transition-all">
+                <div className="w-16 h-16 bg-emerald-500/10 rounded-xl flex items-center justify-center border border-emerald-500/20">
                   <step.icon className="w-8 h-8 text-emerald-500" />
                 </div>
                 <p className="mt-2 text-sm text-gray-400">{step.name}</p>
               </div>
-              {index < pipelineSteps.length - 1 && (
-                <ArrowRight className="w-8 h-8 text-gray-600 mx-4" />
-              )}
+              {index < pipelineSteps.length - 1 && <ArrowRight className="w-8 h-8 text-gray-600 mx-4" />}
             </div>
           ))}
+        </div>
+      </div>
+
+      <div className="bg-[#1a1d27] rounded-xl p-6 border border-gray-800">
+        <h2 className="text-xl font-semibold mb-4">Comparison Summary</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-300">
+          <div className="rounded-lg bg-gray-900/50 p-4">
+            <p className="text-gray-400 mb-1">Best overall</p>
+            <p className="font-semibold text-emerald-500">{data.comparisonSummary.best_overall}</p>
+          </div>
+          <div className="rounded-lg bg-gray-900/50 p-4">
+            <p className="text-gray-400 mb-1">DL minus ML</p>
+            <p className="font-semibold">
+              {data.comparisonSummary.delta_accuracy_deep_minus_classical === null
+                ? "n/a"
+                : `${(data.comparisonSummary.delta_accuracy_deep_minus_classical * 100).toFixed(2)} pts`}
+            </p>
+          </div>
+          <div className="rounded-lg bg-gray-900/50 p-4">
+            <p className="text-gray-400 mb-1">Advanced segmentation</p>
+            <p className="font-semibold">
+              {data.comparisonSummary.modern_pipeline?.advanced_segmentation?.best_method?.replaceAll("_", " ") ??
+                "n/a"}
+            </p>
+          </div>
         </div>
       </div>
     </div>

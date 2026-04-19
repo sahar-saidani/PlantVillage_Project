@@ -115,6 +115,25 @@ Le pipeline est concu pour fonctionner avec un modele deep deja entraine dans Co
 - les metriques seront regenerees a partir du jeu de test indexe dans `artifacts/metadata/dataset_index.csv`
 - un entrainement local n'est lance que si vous utilisez explicitement `--force-train`
 
+## Frontend React
+
+Le dossier `frontend/` est maintenant branche sur les artefacts du projet.
+
+Avant de lancer le frontend, exportez les JSON et images vers `frontend/public/project-data` :
+
+```powershell
+python scripts/export_frontend_data.py
+```
+
+Puis lancez l'interface React :
+
+```powershell
+cd frontend
+npm run dev
+```
+
+Le script `npm run dev` relance aussi automatiquement l'export des artefacts.
+
 ## Sorties attendues
 
 Apres execution, les artefacts sont ranges dans :
