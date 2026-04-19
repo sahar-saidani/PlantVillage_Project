@@ -8,3 +8,4 @@ models/
 .DS_Store
 frontend/node_modules/
 frontend/public/project-data/
+frontend/dist/
